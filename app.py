@@ -290,9 +290,8 @@ if btn_predict:
                     # Note: A direct clipboard copy is limited in Streamlit; we offer download as alternative.
             with c2:
                 st.download_button("Download .txt", txt_value, file_name=f"{name.replace(' ','_')}_prediction.txt", mime="text/plain")
-            with c3:
-                st.button("Share (coming soon)", disabled=True)
+
 
 # --------- Footer ----------
 st.markdown("<br>", unsafe_allow_html=True)
-#st.markdown("<div class='muted'>Built with ❤️ • Streamlit — Improve UI further by adding icons, images, or hosting frontend separately.</div>", unsafe_allow_html=True)
+st.markdown("<div class='muted'>Built with ❤️ • Streamlit — Improve UI further by adding icons, images, or hosting frontend separately.</div>", unsafe_allow_html=True)
