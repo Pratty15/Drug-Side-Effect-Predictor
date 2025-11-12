@@ -1,4 +1,4 @@
-# app.py
+# app.py - Classic, compact & readable Streamlit UI
 import os
 import re
 import joblib
@@ -8,57 +8,76 @@ import streamlit as st
 from io import StringIO
 from datetime import datetime
 
-# --------- Paths (change if needed) ----------
+# -------- Paths (update if needed) ----------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 DATA_PATH = os.path.join(BASE_DIR, "data", "Medicine_Details.csv")
 
-# --------- Page config ----------
-st.set_page_config(
-    page_title="Drug Side Effect & Review Predictor",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+# -------- Page config ----------
+st.set_page_config(page_title="Drug Side Effect Predictor", layout="centered")
 
-# --------- Inline CSS for nicer look ----------
+# -------- Clean/classic CSS ----------
 st.markdown(
     """
     <style>
-    /* page background */
-    .stApp { background-color: #0b0f14; color: #e6eef6; }
-    /* card */
+    /* Page */
+    .stApp { background: #0f1720; color: #e8eef6; }
+    .block-container { padding: 28px 36px; max-width: 980px; }
+
+    /* Titles */
+    .title { font-size: 28px; font-weight:700; margin-bottom:4px; color: #ffffff; }
+    .subtitle { color:#aebfd3; margin-bottom:18px; }
+
+    /* Card */
     .card {
         background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-        border: 1px solid rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+        padding: 16px;
+        border-radius: 10px;
+        box-shadow: none;
+    }
+
+    /* Input area */
+    .input-row { margin-bottom: 10px; }
+
+    /* Result area: fixed width to avoid overflow */
+    .result-card {
+        background: #0b1220;
+        border: 1px solid rgba(255,255,255,0.06);
         padding: 18px;
-        border-radius: 12px;
-        box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+        border-radius: 10px;
+        max-width: 420px;
     }
-    .title {
-        font-size:34px;
-        font-weight:700;
-        letter-spacing: -0.5px;
-    }
-    .subtitle { color: #9fb0c9; margin-bottom:8px; }
-    .muted { color:#8b9db3; font-size:13px; }
-    .pill {
-        display:inline-block;
-        padding:6px 10px;
-        border-radius:999px;
-        font-weight:600;
-        margin-right:6px;
-    }
-    .green { background: rgba(45, 212, 191, 0.12); color:#2DD4BF; border:1px solid rgba(45,212,191,0.18); }
-    .orange { background: rgba(255, 159, 67, 0.08); color:#FF9F43; border:1px solid rgba(255,159,67,0.12); }
-    .red { background: rgba(255, 99, 132, 0.08); color:#FF6384; border:1px solid rgba(255,99,132,0.12); }
-    .badge { font-size:14px; font-weight:700; }
-    ul.clean { padding-left: 18px; }
+
+    /* Headings inside result */
+    .result-title { font-size:20px; font-weight:800; margin-bottom:4px; color:#fff; word-break:break-word; }
+    .result-meta { color:#aebfd3; margin-bottom:12px; font-size:13px; }
+
+    /* badges */
+    .pill { display:inline-block; padding:6px 10px; border-radius:999px; font-weight:700; font-size:13px; margin-bottom:10px; }
+    .green { background: rgba(45,212,191,0.10); color:#2DD4BF; border:1px solid rgba(45,212,191,0.14); }
+    .orange { background: rgba(255,159,67,0.08); color:#FF9F43; border:1px solid rgba(255,159,67,0.12); }
+    .red { background: rgba(255,99,132,0.06); color:#FF6384; border:1px solid rgba(255,99,132,0.10); }
+
+    /* lists */
+    ul.clean { padding-left: 18px; margin-top: 8px; }
+    ul.clean li { margin-bottom: 6px; line-height:1.35; color:#dfeaf6; }
+
+    /* small text */
+    .muted { color:#9fb0c9; font-size:13px; }
+
+    /* wrap long selectbox contents */
+    .css-15tx938 { max-width: 620px; } /* Streamlit selectbox container tweak (may vary across versions) */
+
+    /* ensure long inputs wrap */
+    .stTextInput>div>div>input { color: #e6eef6; }
+
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# --------- Helpers ----------
+# -------- Helpers ----------
 SEVERITY_RULES = {
     'severe': ['death', 'anaphyl', 'coma', 'hospital', 'failure', 'insufficiency', 'liver'],
     'moderate': ['nausea', 'vomit', 'vomiting', 'diarr', 'headache', 'dizzy', 'rash', 'pain', 'nausea'],
@@ -92,7 +111,6 @@ def format_side_effects(side_effects):
             p = p.strip().capitalize()
             if len(p) > 1:
                 formatted.append(p)
-    # preserve order, remove duplicates
     return list(dict.fromkeys(formatted))
 
 @st.cache_resource
@@ -122,7 +140,6 @@ def get_predictions_for_drug(selected_drug):
     pred = xgb_model.predict(vec)
     raw = [label_binarizer.classes_[i] for i in range(len(pred[0])) if pred[0][i] == 1]
     formatted = format_side_effects(raw)
-    # group by severity
     groups = {"mild": [], "moderate": [], "severe": []}
     for eff in formatted:
         sev = estimate_severity(eff)
@@ -132,7 +149,6 @@ def get_predictions_for_drug(selected_drug):
             groups["moderate"].append((eff, sev))
         else:
             groups["mild"].append((eff, sev))
-    # review sentiment
     excellent = row.get('Excellent Review %', 0)
     average = row.get('Average Review %', 0)
     if excellent > 50:
@@ -141,157 +157,102 @@ def get_predictions_for_drug(selected_drug):
         review = "Average ⚠"
     else:
         review = "Poor ⚠️"
-    return {
-        "name": row['Medicine Name'],
-        "raw": raw,
-        "groups": groups,
-        "review": review,
-        "row": row.to_dict()
-    }
+    return {"name": row['Medicine Name'], "raw": raw, "groups": groups, "review": review, "row": row.to_dict()}
 
-# --------- Header ----------
-col1, col2 = st.columns([6,2])
-with col1:
-    st.markdown('<div class="title">🔷 Drug Side Effect & Review Predictor</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Enter a medicine name and see predicted side effects grouped by severity — clean, clear and ready for demo.</div>', unsafe_allow_html=True)
-with col2:
-    st.markdown("<div style='text-align:right; color:#9fb0c9; font-weight:600'>Demo • Streamlit</div>", unsafe_allow_html=True)
+# -------- Header ----------
+st.markdown('<div class="title">🔷 Drug Side Effect & Review Predictor</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Type a medicine name and view grouped side effects — classic, readable and demo-friendly.</div>', unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
+# -------- Main layout: two columns, result on right with fixed width ----------
+col_left, col_right = st.columns([3, 1])
 
-# --------- Main layout ----------
-left, right = st.columns([2.2, 1])
-
-with left:
+with col_left:
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("### 🔍 Search Medicine")
-    query = st.text_input("Type medicine name", value="", placeholder="e.g. Botox, Picon Cream, Neurovin ...")
-    # fuzzy suggestions as user types
-    suggestions = []
-    if query:
-        suggestions = difflib.get_close_matches(query, drug_list, n=8, cutoff=0.30)
+    st.markdown('### 🔍 Search Medicine', unsafe_allow_html=True)
+
+    query = st.text_input("Type medicine name", value="", placeholder="e.g. Paracetamol, Botox, StayHappi ...")
+    suggestions = difflib.get_close_matches(query, drug_list, n=6, cutoff=0.30) if query else []
+    chosen = None
     if suggestions:
-        st.caption("Suggestions (click to choose):")
-        chosen = st.selectbox("Or choose from suggestions", options=["-- choose --"] + suggestions, index=0)
-    else:
-        chosen = None
-
-    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-    cols = st.columns([1,1])
-    with cols[0]:
-        btn_predict = st.button("Predict", use_container_width=True)
-    with cols[1]:
-        st.markdown('<button style="background:#1f6feb;color:#fff;border-radius:8px;padding:8px 12px;border:none;font-weight:700">Advanced</button>', unsafe_allow_html=True)
-
+        st.caption("Suggestions (choose one):")
+        chosen = st.selectbox("", options=["-- choose --"] + suggestions, index=0)
+    # Predict
+    btn_predict = st.button("Predict")
     st.markdown("</div>", unsafe_allow_html=True)
+
     st.markdown("<br>", unsafe_allow_html=True)
+    with st.expander("Dataset preview & tips (small sample)"):
+        st.write("If suggestions are off, type more characters or check dataset for spelling.")
+        st.dataframe(df[['Medicine Name']].drop_duplicates().head(8).reset_index(drop=True))
 
-    # Extra info / dataset preview
-    with st.expander("Dataset preview & tips"):
-        st.write("Tip: If suggestions look odd, try typing more characters or check dataset for spelling.")
-        st.dataframe(df[['Medicine Name']].drop_duplicates().sample(min(10, len(df))).reset_index(drop=True))
+with col_right:
+    # static container for result with fixed width to avoid overflow
+    st.markdown('<div class="result-card">', unsafe_allow_html=True)
+    result_placeholder = st.empty()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-with right:
-    # Result placeholder card
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("### 📌 Result")
-    result_area = st.empty()
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# --------- Handle predict action ----------
+# -------- Handle predict ----------
 selected_drug = None
 if btn_predict:
     if chosen and chosen != "-- choose --":
         selected_drug = chosen
     elif query:
-        # try exact
         exact = next((d for d in drug_list if d.lower() == query.lower()), None)
         if exact:
             selected_drug = exact
         elif suggestions:
-            # if suggestions exist, pick first automatically but show choice to user
+            # if user typed and suggestions available, pick first suggestion but show that choice
             selected_drug = suggestions[0]
         else:
             selected_drug = None
 
     if not selected_drug:
-        result_area.error("❌ No matching drug found. Try different name or choose from suggestions.")
+        result_placeholder.error("❌ No matching drug found. Try different name or choose from suggestions.")
     else:
         pred = get_predictions_for_drug(selected_drug)
         if not pred:
-            result_area.error("❌ Drug found in list but no model prediction available.")
+            result_placeholder.error("❌ Drug found but prediction unavailable.")
         else:
-            # Build nice HTML for result
             name = pred['name']
             review = pred['review']
             groups = pred['groups']
+            now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            header_html = f"""
-            <div style="display:flex; align-items:center; gap:12px;">
-                <div style="font-size:22px; font-weight:800;">📍 {name}</div>
-                <div style="margin-left:8px; color:#9fb0c9;">{now}</div>
-            </div>
-            <div style="margin-top:8px;" class="muted">🗣️ Review Sentiment: <strong style="color:#e6eef6"> {review} </strong></div>
-            <hr style="opacity:0.06; margin-top:12px; margin-bottom:14px;">
-            """
-            # prepare lists
-            mild_html = ""
-            mod_html = ""
-            sev_html = ""
-            if groups["mild"]:
-                mild_html += "<div class='pill green badge'>✅ Mild Side Effects</div><ul class='clean'>"
-                for eff, sev in groups["mild"]:
-                    mild_html += f"<li>{eff} <span style='color:#2DD4BF'>• Mild</span></li>"
-                mild_html += "</ul>"
-            if groups["moderate"]:
-                mod_html += "<div class='pill orange badge'>🟠 Moderate Side Effects</div><ul class='clean'>"
-                for eff, sev in groups["moderate"]:
-                    mod_html += f"<li>{eff} <span style='color:#FF9F43'>• Moderate</span></li>"
-                mod_html += "</ul>"
-            if groups["severe"]:
-                sev_html += "<div class='pill red badge'>🔴 Severe Side Effects</div><ul class='clean'>"
-                for eff, sev in groups["severe"]:
-                    sev_html += f"<li>{eff} <span style='color:#FF6384'>• Severe</span></li>"
-                sev_html += "</ul>"
+            # Build result HTML with safe wrapping
+            header = f"<div class='result-title'>📍 {name}</div><div class='result-meta'>🗓 {now} &nbsp;&nbsp; • &nbsp;&nbsp; 🗣️ Review: <strong style='color:#e6eef6'>{review}</strong></div>"
+            parts = header
+            # mild
+            if groups['mild']:
+                parts += "<div style='margin-top:6px'><span class='pill green'>✅ Mild Side Effects</span><ul class='clean'>"
+                for eff,_ in groups['mild']:
+                    parts += f"<li>{eff} <span class='muted'>• Mild</span></li>"
+                parts += "</ul></div>"
+            if groups['moderate']:
+                parts += "<div style='margin-top:6px'><span class='pill orange'>🟠 Moderate Side Effects</span><ul class='clean'>"
+                for eff,_ in groups['moderate']:
+                    parts += f"<li>{eff} <span class='muted'>• Moderate</span></li>"
+                parts += "</ul></div>"
+            if groups['severe']:
+                parts += "<div style='margin-top:6px'><span class='pill red'>🔴 Severe Side Effects</span><ul class='clean'>"
+                for eff,_ in groups['severe']:
+                    parts += f"<li>{eff} <span class='muted'>• Severe</span></li>"
+                parts += "</ul></div>"
 
-            # combine
-            body_html = header_html + mild_html + mod_html + sev_html
+            result_placeholder.markdown(f"<div class='card'>{parts}</div>", unsafe_allow_html=True)
 
-            # show in result_area
-            result_area.markdown(f"<div class='card'>{body_html}</div>", unsafe_allow_html=True)
-
-            # generate text output for copy/download
+            # prepare downloadable text
             txt = StringIO()
-            txt.write(f"Drug: {name}\nReview: {review}\n\n")
-            if groups["mild"]:
-                txt.write("Mild:\n")
-                for eff,_ in groups["mild"]:
-                    txt.write(f"- {eff}\n")
-                txt.write("\n")
-            if groups["moderate"]:
-                txt.write("Moderate:\n")
-                for eff,_ in groups["moderate"]:
-                    txt.write(f"- {eff}\n")
-                txt.write("\n")
-            if groups["severe"]:
-                txt.write("Severe:\n")
-                for eff,_ in groups["severe"]:
-                    txt.write(f"- {eff}\n")
-                txt.write("\n")
-            txt_value = txt.getvalue()
+            txt.write(f"Drug: {name}\nReview: {review}\nGenerated: {now}\n\n")
+            for grp_name, grp in (("Mild", groups['mild']), ("Moderate", groups['moderate']), ("Severe", groups['severe'])):
+                if grp:
+                    txt.write(f"{grp_name}:\n")
+                    for eff,_ in grp:
+                        txt.write(f"- {eff}\n")
+                    txt.write("\n")
+            download_text = txt.getvalue()
+            # Show actions below card (copy/download)
+            st.download_button("Download .txt", download_text, file_name=f"{name.replace(' ','_')}_prediction.txt", mime="text/plain")
 
-            # action buttons
-            c1, c2, c3 = st.columns([1,1,1])
-            with c1:
-                if st.button("Copy result text"):
-                    st.experimental_set_query_params()  # tiny no-op so UI updates
-                    st.write("✅ Copied to clipboard (use browser copy).")
-                    # Note: A direct clipboard copy is limited in Streamlit; we offer download as alternative.
-            with c2:
-                st.download_button("Download .txt", txt_value, file_name=f"{name.replace(' ','_')}_prediction.txt", mime="text/plain")
-
-
-# --------- Footer ----------
+# Footer small note
 st.markdown("<br>", unsafe_allow_html=True)
-st.markdown("<div class='muted'>Built with ❤️ • Streamlit — Improve UI further by adding icons, images, or hosting frontend separately.</div>", unsafe_allow_html=True)
+st.markdown("<div class='muted'>Tip: For production, serve a React frontend with the FastAPI backend to get pixel-perfect layout and better control over responsive behavior.</div>", unsafe_allow_html=True)
