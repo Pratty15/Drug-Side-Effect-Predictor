@@ -1,10 +1,9 @@
 # app_pages.py
 """
-Elegant multi-page Streamlit app:
-- /?page=login   -> Login page (elegant)
-- /?page=signup  -> Signup page (elegant)
-- /?page=app     -> Protected predictor
-Run: streamlit run app_pages.py
+Streamlit multi-page Drug Predictor
+- Login page → /?page=login
+- Signup page → /?page=signup
+- Predictor page → /?page=app (protected)
 """
 
 import os
@@ -25,88 +24,35 @@ DATA_PATH = os.path.join(BASE_DIR, "data", "Medicine_Details.csv")
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "users.db"))
 
 # ---------------- PAGE SETTINGS ----------------
-st.set_page_config(page_title="Drug Predictor • Auth", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Drug Side Effect Predictor", layout="centered")
 
-# ---------------- STYLES: Elegant & Classic ----------------
-st.markdown(
-    """
-    <style>
-    :root {
-      --bg:#f6f8fa;
-      --card:#ffffff;
-      --muted:#6b7280;
-      --accent:#0f62fe;
-      --accent-2:#06b6d4;
-    }
-    /* page background */
-    .stApp { background: linear-gradient(180deg,#e6eefb 0%, #f7fbff 100%); color: #071126; }
-    /* center container tweaks */
-    .block-container { padding-top: 28px; padding-bottom: 28px; max-width: 960px; }
+# ---------------- STYLE ----------------
+st.markdown("""
+<style>
+body { color: #EAEAEA; background-color: #0f1720; }
+h2, h3 { color: #FFFFFF; }
+.card {
+    background: #101922;
+    padding: 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.muted { color:#9fb0c9; font-size:13px; }
+</style>
+""", unsafe_allow_html=True)
 
-    /* header */
-    .brand { font-weight:800; font-size:20px; color: #071126; margin-bottom:6px; }
-    .tag { color:var(--muted); font-size:13px; margin-bottom:18px; }
-
-    /* card */
-    .card {
-      background: var(--card);
-      border-radius: 12px;
-      padding: 22px;
-      box-shadow: 0 6px 20px rgba(15, 38, 76, 0.06);
-      border: 1px solid rgba(15, 38, 76, 0.04);
-    }
-
-    /* form layout */
-    .form-row { margin-bottom: 12px; }
-    input[type="text"], input[type="password"] {
-      border: 1px solid #d1d5db !important;
-      padding: 10px 12px !important;
-      border-radius: 8px !important;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    /* big CTA */
-    .btn {
-      background: linear-gradient(90deg,var(--accent), var(--accent-2));
-      color: white;
-      padding: 10px 14px;
-      border-radius: 10px;
-      font-weight:700;
-      border: none;
-      cursor: pointer;
-      box-shadow: 0 6px 18px rgba(15,98,254,0.12);
-    }
-    .btn:disabled { opacity:0.6; cursor:not-allowed; box-shadow:none; }
-
-    .muted { color:var(--muted); font-size:13px; }
-    .link { color:var(--accent); font-weight:700; cursor:pointer; text-decoration:underline; }
-
-    .pill {
-      display:inline-block; padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px;
-    }
-
-    /* result card tweaks */
-    .result-card { background: #ffffff; border-radius:10px; padding:14px; border:1px solid rgba(15,38,76,0.04); }
-    .result-title { font-weight:800; font-size:18px; margin-bottom:6px; }
-    ul.clean { padding-left:18px; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# ---------------- DATABASE ----------------
+# ---------------- DATABASE FUNCTIONS ----------------
 def init_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     c = conn.cursor()
-    c.execute(
-        """CREATE TABLE IF NOT EXISTS users (
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash BLOB NOT NULL,
             created_at TEXT NOT NULL
-        );"""
-    )
+        );
+    """)
     conn.commit()
     return conn
 
@@ -120,10 +66,8 @@ def create_user(conn, username, password):
     created_at = datetime.utcnow().isoformat()
     try:
         c = conn.cursor()
-        c.execute(
-            "INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
-            (username, pw_hash, created_at),
-        )
+        c.execute("INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)",
+                  (username, pw_hash, created_at))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -142,7 +86,7 @@ def verify_user(conn, username, password):
 
 conn = init_db()
 
-# ---------------- MODEL & PREDICTOR HELPERS ----------------
+# ---------------- MODEL & PREDICTOR ----------------
 SEVERITY_RULES = {
     "severe": ["death", "anaphyl", "coma", "hospital", "failure", "insufficiency", "liver"],
     "moderate": ["nausea", "vomit", "vomiting", "diarr", "headache", "dizzy", "rash", "pain"],
@@ -225,7 +169,7 @@ if "authenticated" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state["username"] = None
 
-# ---------------- ROUTING ----------------
+# ---------------- QUERY PARAM ROUTER ----------------
 def get_current_page():
     return st.query_params.get("page", "login")
 
@@ -233,161 +177,85 @@ def go_to_page(page_name):
     st.query_params["page"] = page_name
     st.rerun()
 
-# ---------------- UI: Elegant Pages ----------------
-def top_header():
-    st.markdown("<div class='brand'>Drug Side Effect Predictor</div>", unsafe_allow_html=True)
-    st.markdown("<div class='tag'>Secure demo • Login to access the predictor</div>", unsafe_allow_html=True)
+# ---------------- PAGE COMPONENTS ----------------
+def header_nav():
+    st.markdown("### 🔷 Drug Side Effect & Review Predictor")
+    if st.session_state["authenticated"]:
+        st.markdown(f"<div class='muted'>Logged in as {st.session_state['username']}</div>", unsafe_allow_html=True)
+    st.markdown("---")
 
 def login_page():
-    top_header()
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown("### 🔐 Login", unsafe_allow_html=True)
-    st.write("", unsafe_allow_html=True)
-
-    # Inputs inside columns to center nicely
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        uname = st.text_input("Username", key="login_user")
-        pw = st.text_input("Password", type="password", key="login_pw")
-        show_pw = st.checkbox("Show password", key="login_show_pw")
-        if show_pw and pw:
-            st.write(f"**Password:** `{pw}`")
-
-        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-        # Buttons
-        if st.button("Login", key="login_btn"):
-            if not uname or not pw:
-                st.warning("Please enter username and password.")
-            else:
-                if verify_user(conn, uname, pw):
-                    st.session_state["authenticated"] = True
-                    st.session_state["username"] = uname
-                    st.success(f"Welcome, {uname}!")
-                    go_to_page("app")
-                else:
-                    st.error("Invalid username or password.")
-
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        st.markdown('<div class="muted">No account? <span class="link" id="toSignup">Create one</span></div>', unsafe_allow_html=True)
-        # JS-less "link": use button to navigate
-        if st.button("Create account", key="goto_signup_btn"):
-            go_to_page("signup")
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("## 🔐 Login")
+    username = st.text_input("Username", key="login_user")
+    password = st.text_input("Password", type="password", key="login_pw")
+    if st.button("Login"):
+        if verify_user(conn, username, password):
+            st.session_state["authenticated"] = True
+            st.session_state["username"] = username
+            st.success(f"Welcome {username}!")
+            go_to_page("app")
+        else:
+            st.error("Invalid username or password")
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("Go to Signup"):
+        go_to_page("signup")
 
 def signup_page():
-    top_header()
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown("### 📝 Create an account", unsafe_allow_html=True)
-
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        new_user = st.text_input("Choose username", key="signup_user")
-        new_pw = st.text_input("Password", type="password", key="signup_pw")
-        new_pw2 = st.text_input("Confirm password", type="password", key="signup_pw2")
-        show_pw = st.checkbox("Show passwords", key="signup_show_pw")
-        if show_pw:
-            if new_pw:
-                st.write(f"**Password:** `{new_pw}`")
-            if new_pw2:
-                st.write(f"**Confirm:** `{new_pw2}`")
-
-        # Simple password strength (visual hint)
-        strength_msg = "Too short"
-        if new_pw and len(new_pw) >= 8:
-            score = 1
-            if re.search(r"\d", new_pw):
-                score += 1
-            if re.search(r"[A-Z]", new_pw):
-                score += 1
-            if score == 1:
-                strength_msg = "Weak"
-            elif score == 2:
-                strength_msg = "Okay"
-            else:
-                strength_msg = "Strong"
-        if new_pw:
-            st.markdown(f"<div class='muted'>Password strength: <strong>{strength_msg}</strong></div>", unsafe_allow_html=True)
-
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        if st.button("Create account", key="signup_btn"):
-            if not new_user or not new_pw or not new_pw2:
-                st.warning("Please fill all fields.")
-            elif new_pw != new_pw2:
-                st.error("Passwords do not match.")
-            elif user_exists(conn, new_user):
-                st.error("Username already exists.")
-            elif len(new_pw) < 6:
-                st.error("Password too short (min 6 chars).")
-            else:
-                created = create_user(conn, new_user, new_pw)
-                if created:
-                    st.success("Account created — you can now login.")
-                    go_to_page("login")
-                else:
-                    st.error("Could not create account. Try another username.")
-
-        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-        if st.button("Back to Login", key="signup_back"):
+    st.markdown("## 📝 Signup")
+    username = st.text_input("Choose username", key="signup_user")
+    pw1 = st.text_input("Password", type="password", key="signup_pw1")
+    pw2 = st.text_input("Confirm password", type="password", key="signup_pw2")
+    if st.button("Create Account"):
+        if not username or not pw1 or not pw2:
+            st.warning("Fill all fields")
+        elif pw1 != pw2:
+            st.error("Passwords do not match")
+        elif user_exists(conn, username):
+            st.error("Username already exists")
+        else:
+            create_user(conn, username, pw1)
+            st.success("Account created successfully!")
             go_to_page("login")
-    st.markdown("</div>", unsafe_allow_html=True)
+    if st.button("Back to Login"):
+        go_to_page("login")
 
 def predictor_page():
-    top_header()
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.markdown("### 💊 Drug Predictor", unsafe_allow_html=True)
     if not st.session_state["authenticated"]:
-        st.warning("Please login to access the predictor.")
+        st.warning("Please login first.")
         if st.button("Go to Login"):
             go_to_page("login")
-        st.markdown("</div>", unsafe_allow_html=True)
         return
 
-    st.markdown(f"<div class='muted'>Signed in as <strong>{st.session_state['username']}</strong></div>", unsafe_allow_html=True)
-    query = st.text_input("Enter medicine name", key="predict_query")
+    st.markdown("## 💊 Drug Predictor")
+    query = st.text_input("Enter medicine name")
     suggestions = difflib.get_close_matches(query, drug_list, n=8, cutoff=0.30) if query else []
     chosen = st.selectbox("Choose from suggestions", ["-- None --"] + suggestions) if suggestions else None
 
-    if st.button("Predict", key="predict_btn"):
+    if st.button("Predict"):
         sel = chosen if chosen and chosen != "-- None --" else query
         if not sel:
-            st.error("No drug selected.")
+            st.error("No drug selected")
         else:
             result = get_predictions_for_drug(sel)
             if not result:
-                st.error("Drug not found in dataset.")
+                st.error("Drug not found in dataset")
             else:
-                st.markdown("<div class='result-card'>", unsafe_allow_html=True)
-                st.markdown(f"<div class='result-title'>📌 {result['name']}</div>", unsafe_allow_html=True)
-                st.write("**Review:**", result["review"])
+                st.markdown(f"### 📌 {result['name']}")
+                st.write(f"**Review:** {result['review']}")
                 for cat, items in result["groups"].items():
                     if items:
                         emoji = "🟢" if cat == "mild" else "🟠" if cat == "moderate" else "🔴"
                         st.markdown(f"**{emoji} {cat.capitalize()} Side Effects**")
-                        st.markdown("<ul class='clean'>", unsafe_allow_html=True)
                         for eff, sev in items:
-                            st.markdown(f"<li>{eff} <span class='muted'>• {sev}</span></li>", unsafe_allow_html=True)
-                        st.markdown("</ul>", unsafe_allow_html=True)
-                st.markdown("</div>", unsafe_allow_html=True)
+                            st.write(f"- {eff} ({sev})")
 
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
     if st.button("Logout"):
         st.session_state["authenticated"] = False
         st.session_state["username"] = None
         go_to_page("login")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
 # ---------------- ROUTER ----------------
-# Load models/data once (cached earlier)
-@st.cache_resource
-def ensure_models_loaded():
-    # Already loaded above via load_models_and_data() call; ensure keys exist
-    return True
-
-# Ensure models and data exist before mapping pages (this caches inside load_models_and_data)
-tfv, xgb_model, label_binarizer, df, drug_list = load_models_and_data()
-
-# Header & routing
+header_nav()
 page = get_current_page()
 
 if page == "login":
@@ -397,5 +265,4 @@ elif page == "signup":
 elif page == "app":
     predictor_page()
 else:
-    # fallback
     st.error("Page not found. Use ?page=login or ?page=signup or ?page=app")
