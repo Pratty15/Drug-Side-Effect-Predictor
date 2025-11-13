@@ -1,10 +1,3 @@
-"""
-Streamlit multi-page Drug Predictor
-- Login page → /?page=login
-- Signup page → /?page=signup
-- Predictor page → /?page=app (protected)
-"""
-
 import os
 import re
 import sqlite3
@@ -13,8 +6,8 @@ import pandas as pd
 import difflib
 import streamlit as st
 import bcrypt
-from io import StringIO
 from datetime import datetime
+import plotly.graph_objects as go
 
 # ---------------- CONFIG ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +22,7 @@ st.set_page_config(page_title="Drug Side Effect Predictor", layout="centered")
 st.markdown("""
 <style>
 body { color: #EAEAEA; background-color: #0f1720; }
-h2, h3 { color: #FFFFFF; }
+h2, h3, h4 { color: #FFFFFF; }
 .card {
     background: #101922;
     padding: 18px;
@@ -40,7 +33,7 @@ h2, h3 { color: #FFFFFF; }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- DATABASE FUNCTIONS ----------------
+# ---------------- DATABASE ----------------
 def init_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     c = conn.cursor()
@@ -85,9 +78,9 @@ def verify_user(conn, username, password):
 
 conn = init_db()
 
-# ---------------- MODEL & PREDICTOR ----------------
+# ---------------- MODEL & DATA ----------------
 SEVERITY_RULES = {
-    "severe": ["death", "anaphyl", "coma", "hospital", "failure", "insufficiency", "liver"],
+    "severe": ["death", "anaphyl", "coma", "hospital", "failure", "insufficiency", "liver", "seizure"],
     "moderate": ["nausea", "vomit", "vomiting", "diarr", "headache", "dizzy", "rash", "pain"],
 }
 
@@ -128,8 +121,7 @@ def load_models_and_data():
     label_binarizer = joblib.load(os.path.join(MODELS_DIR, "mlb.pkl"))
     df = pd.read_csv(DATA_PATH)
     df["Medicine Name"] = df["Medicine Name"].astype(str)
-    drug_list = df["Medicine Name"].dropna().unique().tolist()
-    return tfv, xgb_model, label_binarizer, df, drug_list
+    return tfv, xgb_model, label_binarizer, df, df["Medicine Name"].dropna().unique().tolist()
 
 tfv, xgb_model, label_binarizer, df, drug_list = load_models_and_data()
 
@@ -138,29 +130,37 @@ def get_predictions_for_drug(selected_drug):
     if matches.empty:
         return None
     row = matches.iloc[0]
+
     desc = clean_text(row.get("Composition", "")) + " " + clean_text(row.get("Uses", ""))
     vec = tfv.transform([desc])
     pred = xgb_model.predict(vec)
     raw = [label_binarizer.classes_[i] for i in range(len(pred[0])) if pred[0][i] == 1]
     formatted = format_side_effects(raw)
+
     groups = {"mild": [], "moderate": [], "severe": []}
     for eff in formatted:
         sev = estimate_severity(eff)
         if "Severe" in sev:
-            groups["severe"].append((eff, sev))
+            groups["severe"].append(eff)
         elif "Moderate" in sev:
-            groups["moderate"].append((eff, sev))
+            groups["moderate"].append(eff)
         else:
-            groups["mild"].append((eff, sev))
+            groups["mild"].append(eff)
+
     excellent = row.get("Excellent Review %", 0)
     average = row.get("Average Review %", 0)
-    if excellent > 50:
-        review = "Excellent ✅"
-    elif average > 50:
-        review = "Average ⚠"
-    else:
-        review = "Poor ⚠️"
-    return {"name": row["Medicine Name"], "groups": groups, "review": review}
+    poor = 100 - (excellent + average)
+    review_label = "Excellent ✅" if excellent > 50 else "Average ⚠" if average > 50 else "Poor ⚠️"
+
+    return {
+        "name": row["Medicine Name"],
+        "groups": groups,
+        "review": review_label,
+        "image_url": row.get("Image URL", ""),
+        "excellent": excellent,
+        "average": average,
+        "poor": poor
+    }
 
 # ---------------- SESSION ----------------
 if "authenticated" not in st.session_state:
@@ -168,7 +168,7 @@ if "authenticated" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state["username"] = None
 
-# ---------------- QUERY PARAM ROUTER ----------------
+# ---------------- ROUTER ----------------
 def get_current_page():
     return st.query_params.get("page", "login")
 
@@ -176,7 +176,7 @@ def go_to_page(page_name):
     st.query_params["page"] = page_name
     st.rerun()
 
-# ---------------- PAGE COMPONENTS ----------------
+# ---------------- PAGES ----------------
 def header_nav():
     st.markdown("### 🔷 Drug Side Effect & Review Predictor")
     if st.session_state["authenticated"]:
@@ -185,8 +185,8 @@ def header_nav():
 
 def login_page():
     st.markdown("## 🔐 Login")
-    username = st.text_input("Username", key="login_user")
-    password = st.text_input("Password", type="password", key="login_pw")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
     if st.button("Login"):
         if verify_user(conn, username, password):
             st.session_state["authenticated"] = True
@@ -195,15 +195,14 @@ def login_page():
             go_to_page("app")
         else:
             st.error("Invalid username or password")
-    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("Go to Signup"):
         go_to_page("signup")
 
 def signup_page():
     st.markdown("## 📝 Signup")
-    username = st.text_input("Choose username", key="signup_user")
-    pw1 = st.text_input("Password", type="password", key="signup_pw1")
-    pw2 = st.text_input("Confirm password", type="password", key="signup_pw2")
+    username = st.text_input("Choose username")
+    pw1 = st.text_input("Password", type="password")
+    pw2 = st.text_input("Confirm password", type="password")
     if st.button("Create Account"):
         if not username or not pw1 or not pw2:
             st.warning("Fill all fields")
@@ -227,7 +226,7 @@ def predictor_page():
 
     st.markdown("## 💊 Drug Predictor")
     query = st.text_input("Enter medicine name")
-    suggestions = difflib.get_close_matches(query, drug_list, n=8, cutoff=0.30) if query else []
+    suggestions = difflib.get_close_matches(query, drug_list, n=8, cutoff=0.3) if query else []
     chosen = st.selectbox("Choose from suggestions", ["-- None --"] + suggestions) if suggestions else None
 
     if st.button("Predict"):
@@ -239,16 +238,48 @@ def predictor_page():
             if not result:
                 st.error("Drug not found in dataset")
             else:
-                st.markdown(f"### 📌 {result['name']}")
-                st.write(f"**Review:** {result['review']}")
+                col1, col2 = st.columns([1, 2])
 
-                # ✅ FIXED: no severity labels for any category (clean look)
+                with col1:
+                    if result["image_url"] and str(result["image_url"]).startswith("http"):
+                        st.image(result["image_url"], caption=result["name"], use_container_width=True)
+                    else:
+                        st.image("https://via.placeholder.com/300x200?text=No+Image", caption="No image available", use_container_width=True)
+                    st.write(f"**Review:** {result['review']}")
+                    st.markdown(f"<i>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>", unsafe_allow_html=True)
+
+                with col2:
+                    st.markdown(f"### 📌 {result['name']}")
+                    # Severity Chart
+                    counts = {
+                        "Mild": len(result["groups"]["mild"]),
+                        "Moderate": len(result["groups"]["moderate"]),
+                        "Severe": len(result["groups"]["severe"])
+                    }
+                    fig_bar = go.Figure(go.Bar(
+                        x=list(counts.keys()), y=list(counts.values()),
+                        marker_color=["#2ecc71", "#f1c40f", "#e74c3c"]
+                    ))
+                    fig_bar.update_layout(title="Side-effects by severity", xaxis_title="Severity", yaxis_title="Count", height=300)
+                    st.plotly_chart(fig_bar, use_container_width=True)
+
+                    # Review Pie Chart
+                    fig_pie = go.Figure(go.Pie(
+                        labels=["Excellent", "Average", "Poor"],
+                        values=[result["excellent"], result["average"], result["poor"]],
+                        marker_colors=["#f1c40f", "#3498db", "#e74c3c"],
+                        hole=0.3
+                    ))
+                    fig_pie.update_layout(title="Review distribution", height=300)
+                    st.plotly_chart(fig_pie, use_container_width=True)
+
+                # Side effects below
                 for cat, items in result["groups"].items():
                     if items:
                         emoji = "🟢" if cat == "mild" else "🟠" if cat == "moderate" else "🔴"
                         st.markdown(f"**{emoji} {cat.capitalize()} Side Effects**")
-                        for eff, sev in items:
-                            st.write(f"- {eff}")  # just show the name
+                        for eff in items:
+                            st.write(f"- {eff}")
 
     if st.button("Logout"):
         st.session_state["authenticated"] = False
