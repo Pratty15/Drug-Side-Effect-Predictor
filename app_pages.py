@@ -242,16 +242,13 @@ def predictor_page():
                 st.markdown(f"### 📌 {result['name']}")
                 st.write(f"**Review:** {result['review']}")
 
-                # 🟢 FIXED SECTION: avoid repeating (Mild 🟢) for mild effects
+                # ✅ FIXED: no severity labels for any category (clean look)
                 for cat, items in result["groups"].items():
                     if items:
                         emoji = "🟢" if cat == "mild" else "🟠" if cat == "moderate" else "🔴"
                         st.markdown(f"**{emoji} {cat.capitalize()} Side Effects**")
                         for eff, sev in items:
-                            if cat == "mild":
-                                st.write(f"- {eff}")
-                            else:
-                                st.write(f"- {eff} ({sev})")
+                            st.write(f"- {eff}")  # just show the name
 
     if st.button("Logout"):
         st.session_state["authenticated"] = False
