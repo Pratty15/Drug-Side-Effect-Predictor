@@ -1,4 +1,3 @@
-# app_pages.py
 """
 Streamlit multi-page Drug Predictor
 - Login page → /?page=login
@@ -242,12 +241,17 @@ def predictor_page():
             else:
                 st.markdown(f"### 📌 {result['name']}")
                 st.write(f"**Review:** {result['review']}")
+
+                # 🟢 FIXED SECTION: avoid repeating (Mild 🟢) for mild effects
                 for cat, items in result["groups"].items():
                     if items:
                         emoji = "🟢" if cat == "mild" else "🟠" if cat == "moderate" else "🔴"
                         st.markdown(f"**{emoji} {cat.capitalize()} Side Effects**")
                         for eff, sev in items:
-                            st.write(f"- {eff} ({sev})")
+                            if cat == "mild":
+                                st.write(f"- {eff}")
+                            else:
+                                st.write(f"- {eff} ({sev})")
 
     if st.button("Logout"):
         st.session_state["authenticated"] = False
