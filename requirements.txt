@@ -5,3 +5,5 @@ joblib
 xgboost
 streamlit
 bcrypt
+altair
+pillow
