@@ -18,20 +18,81 @@ DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "users.db"))
 # ---------------- PAGE SETTINGS ----------------
 st.set_page_config(page_title="Drug Side Effect Predictor", layout="centered")
 
-# ---------------- STYLE ----------------
+# ---------------- STYLE (IMPROVED UI) ----------------
 st.markdown("""
 <style>
-body { color: #EAEAEA; background-color: #0f1720; }
-h2, h3, h4 { color: #FFFFFF; }
+
+body {
+    color: #EAEAEA;
+    background-color: #0f1720;
+    font-size: 18px;
+}
+
+/* Headings */
+h1, h2, h3, h4 {
+    color: #FFFFFF !important;
+    margin-top: 20px !important;
+    margin-bottom: 12px !important;
+}
+
+/* Layout container spacing */
+.block-container {
+    padding-top: 2rem !important;
+}
+
+/* Cards */
 .card {
     background: #101922;
-    padding: 18px;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.05);
+    padding: 25px;
+    margin-top: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
 }
-.muted { color:#9fb0c9; font-size:13px; }
+
+/* Muted text */
+.muted {
+    color:#b5c7df;
+    font-size: 15px;
+}
+
+/* Input spacing */
+.stTextInput, .stSelectbox, .stButton {
+    margin-top: 12px !important;
+    margin-bottom: 12px !important;
+}
+
+/* Larger text in inputs */
+input, select, textarea {
+    font-size: 18px !important;
+}
+
+/* Column spacing */
+.css-1kyxreq {
+    gap: 2rem !important;
+}
+
+/* Side effects list */
+ul, li {
+    margin-top: 8px;
+    font-size: 18px;
+}
+
+/* Buttons */
+.stButton>button {
+    font-size: 18px !important;
+    padding: 10px 18px;
+    border-radius: 8px;
+}
+
+/* Plotly title */
+.js-plotly-plot .plotly .gtitle {
+    font-size: 22px !important;
+    font-weight: 600;
+}
+
 </style>
 """, unsafe_allow_html=True)
+
 
 # ---------------- DATABASE ----------------
 def init_db():
@@ -77,6 +138,7 @@ def verify_user(conn, username, password):
     return bcrypt.checkpw(password.encode("utf-8"), stored_hash)
 
 conn = init_db()
+
 
 # ---------------- MODEL & DATA ----------------
 SEVERITY_RULES = {
@@ -125,6 +187,7 @@ def load_models_and_data():
 
 tfv, xgb_model, label_binarizer, df, drug_list = load_models_and_data()
 
+
 def get_predictions_for_drug(selected_drug):
     matches = df[df["Medicine Name"].str.lower() == selected_drug.lower()]
     if matches.empty:
@@ -134,6 +197,7 @@ def get_predictions_for_drug(selected_drug):
     desc = clean_text(row.get("Composition", "")) + " " + clean_text(row.get("Uses", ""))
     vec = tfv.transform([desc])
     pred = xgb_model.predict(vec)
+
     raw = [label_binarizer.classes_[i] for i in range(len(pred[0])) if pred[0][i] == 1]
     formatted = format_side_effects(raw)
 
@@ -150,6 +214,7 @@ def get_predictions_for_drug(selected_drug):
     excellent = row.get("Excellent Review %", 0)
     average = row.get("Average Review %", 0)
     poor = 100 - (excellent + average)
+
     review_label = "Excellent ✅" if excellent > 50 else "Average ⚠" if average > 50 else "Poor ⚠️"
 
     return {
@@ -162,11 +227,13 @@ def get_predictions_for_drug(selected_drug):
         "poor": poor
     }
 
+
 # ---------------- SESSION ----------------
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 if "username" not in st.session_state:
     st.session_state["username"] = None
+
 
 # ---------------- ROUTER ----------------
 def get_current_page():
@@ -176,12 +243,14 @@ def go_to_page(page_name):
     st.query_params["page"] = page_name
     st.rerun()
 
+
 # ---------------- PAGES ----------------
 def header_nav():
     st.markdown("### 🔷 Drug Side Effect & Review Predictor")
     if st.session_state["authenticated"]:
         st.markdown(f"<div class='muted'>Logged in as {st.session_state['username']}</div>", unsafe_allow_html=True)
     st.markdown("---")
+
 
 def login_page():
     st.markdown("## 🔐 Login")
@@ -198,11 +267,13 @@ def login_page():
     if st.button("Go to Signup"):
         go_to_page("signup")
 
+
 def signup_page():
     st.markdown("## 📝 Signup")
     username = st.text_input("Choose username")
     pw1 = st.text_input("Password", type="password")
     pw2 = st.text_input("Confirm password", type="password")
+
     if st.button("Create Account"):
         if not username or not pw1 or not pw2:
             st.warning("Fill all fields")
@@ -214,8 +285,10 @@ def signup_page():
             create_user(conn, username, pw1)
             st.success("Account created successfully!")
             go_to_page("login")
+
     if st.button("Back to Login"):
         go_to_page("login")
+
 
 def predictor_page():
     if not st.session_state["authenticated"]:
@@ -225,6 +298,7 @@ def predictor_page():
         return
 
     st.markdown("## 💊 Drug Predictor")
+
     query = st.text_input("Enter medicine name")
     suggestions = difflib.get_close_matches(query, drug_list, n=8, cutoff=0.3) if query else []
     chosen = st.selectbox("Choose from suggestions", ["-- None --"] + suggestions) if suggestions else None
@@ -238,46 +312,67 @@ def predictor_page():
             if not result:
                 st.error("Drug not found in dataset")
             else:
-                col1, col2 = st.columns([1, 2])
+                st.markdown("<br>", unsafe_allow_html=True)
 
+                col1, col2 = st.columns([1, 1.3])
+
+                # ---------------- Left Column ----------------
                 with col1:
                     if result["image_url"] and str(result["image_url"]).startswith("http"):
                         st.image(result["image_url"], caption=result["name"], use_container_width=True)
                     else:
-                        st.image("https://via.placeholder.com/300x200?text=No+Image", caption="No image available", use_container_width=True)
-                    st.write(f"**Review:** {result['review']}")
-                    st.markdown(f"<i>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>", unsafe_allow_html=True)
+                        st.image(
+                            "https://via.placeholder.com/300x200?text=No+Image",
+                            caption="No image available",
+                            use_container_width=True
+                        )
 
+                    st.write(f"**Review:** {result['review']}")
+                    st.markdown(
+                        f"<i>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>",
+                        unsafe_allow_html=True
+                    )
+
+                # ---------------- Right Column ----------------
                 with col2:
                     st.markdown(f"### 📌 {result['name']}")
-                    # Severity Chart
+
                     counts = {
                         "Mild": len(result["groups"]["mild"]),
                         "Moderate": len(result["groups"]["moderate"]),
                         "Severe": len(result["groups"]["severe"])
                     }
+
                     fig_bar = go.Figure(go.Bar(
-                        x=list(counts.keys()), y=list(counts.values()),
+                        x=list(counts.keys()),
+                        y=list(counts.values()),
                         marker_color=["#2ecc71", "#f1c40f", "#e74c3c"]
                     ))
-                    fig_bar.update_layout(title="Side-effects by severity", xaxis_title="Severity", yaxis_title="Count", height=300)
+                    fig_bar.update_layout(
+                        title="Side-effects by severity",
+                        xaxis_title="Severity",
+                        yaxis_title="Count",
+                        height=320
+                    )
                     st.plotly_chart(fig_bar, use_container_width=True)
 
-                    # Review Pie Chart
                     fig_pie = go.Figure(go.Pie(
                         labels=["Excellent", "Average", "Poor"],
                         values=[result["excellent"], result["average"], result["poor"]],
                         marker_colors=["#f1c40f", "#3498db", "#e74c3c"],
                         hole=0.3
                     ))
-                    fig_pie.update_layout(title="Review distribution", height=300)
+                    fig_pie.update_layout(title="Review distribution", height=320)
                     st.plotly_chart(fig_pie, use_container_width=True)
 
-                # Side effects below
+                # ---------------- Side Effects Section ----------------
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("---")
+
                 for cat, items in result["groups"].items():
                     if items:
                         emoji = "🟢" if cat == "mild" else "🟠" if cat == "moderate" else "🔴"
-                        st.markdown(f"**{emoji} {cat.capitalize()} Side Effects**")
+                        st.markdown(f"### {emoji} {cat.capitalize()} Side Effects")
                         for eff in items:
                             st.write(f"- {eff}")
 
@@ -285,6 +380,7 @@ def predictor_page():
         st.session_state["authenticated"] = False
         st.session_state["username"] = None
         go_to_page("login")
+
 
 # ---------------- ROUTER ----------------
 header_nav()
