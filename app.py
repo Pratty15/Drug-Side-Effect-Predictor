@@ -18,7 +18,7 @@ DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "users.db"))
 # ---------------- PAGE SETTINGS ----------------
 st.set_page_config(page_title="Drug Side Effect Predictor", layout="centered")
 
-# ---------------- STYLE (IMPROVED UI) ----------------
+# ---------------- UPDATED WORKING CSS (STREAMLIT 1.49.1) ----------------
 st.markdown("""
 <style>
 
@@ -35,12 +35,12 @@ h1, h2, h3, h4 {
     margin-bottom: 12px !important;
 }
 
-/* Layout container spacing */
+/* Main container padding */
 .block-container {
     padding-top: 2rem !important;
 }
 
-/* Cards */
+/* Card styling */
 .card {
     background: #101922;
     padding: 25px;
@@ -55,36 +55,51 @@ h1, h2, h3, h4 {
     font-size: 15px;
 }
 
-/* Input spacing */
-.stTextInput, .stSelectbox, .stButton {
-    margin-top: 12px !important;
-    margin-bottom: 12px !important;
-}
+/* ---------------- STREAMLIT 1.49 COMPATIBLE SELECTORS ---------------- */
 
-/* Larger text in inputs */
-input, select, textarea {
+/* Text Input */
+div[data-testid="stTextInput"] input {
+    background-color: #101922 !important;
+    color: #EAEAEA !important;
+    border-radius: 8px !important;
+    padding: 10px !important;
     font-size: 18px !important;
+    border: 1px solid #2d3b45 !important;
 }
 
-/* Column spacing */
-.css-1kyxreq {
-    gap: 2rem !important;
+/* Selectbox */
+div[data-testid="stSelectbox"] > div {
+    background-color: #101922 !important;
+    color: white !important;
+    border-radius: 8px !important;
+    border: 1px solid #2d3b45 !important;
+    padding: 6px !important;
 }
 
-/* Side effects list */
+/* Buttons */
+button[kind="primary"], button[data-testid="baseButton-primary"] {
+    background-color: #2563eb !important;
+    color: white !important;
+    font-size: 18px !important;
+    border-radius: 8px !important;
+    padding: 10px 18px !important;
+}
+
+button[kind="secondary"], button[data-testid="baseButton-secondary"] {
+    background-color: #334155 !important;
+    color: white !important;
+    font-size: 18px !important;
+    border-radius: 8px !important;
+    padding: 10px 18px !important;
+}
+
+/* Lists */
 ul, li {
     margin-top: 8px;
     font-size: 18px;
 }
 
-/* Buttons */
-.stButton>button {
-    font-size: 18px !important;
-    padding: 10px 18px;
-    border-radius: 8px;
-}
-
-/* Plotly title */
+/* Plotly Title */
 .js-plotly-plot .plotly .gtitle {
     font-size: 22px !important;
     font-weight: 600;
@@ -316,7 +331,6 @@ def predictor_page():
 
                 col1, col2 = st.columns([1, 1.3])
 
-                # ---------------- Left Column ----------------
                 with col1:
                     if result["image_url"] and str(result["image_url"]).startswith("http"):
                         st.image(result["image_url"], caption=result["name"], use_container_width=True)
@@ -333,7 +347,6 @@ def predictor_page():
                         unsafe_allow_html=True
                     )
 
-                # ---------------- Right Column ----------------
                 with col2:
                     st.markdown(f"### 📌 {result['name']}")
 
@@ -345,7 +358,6 @@ def predictor_page():
 
                     total_side_effects = sum(counts.values())
 
-                    # If no side effects → show message only
                     if total_side_effects == 0:
                         st.markdown(
                             "<div style='text-align:center; font-size:22px; color:#7ed957; margin-top:20px;'>"
@@ -367,7 +379,6 @@ def predictor_page():
                         )
                         st.plotly_chart(fig_bar, use_container_width=True)
 
-                # ---------------- CENTER PIE CHART ----------------
                 c1, mid, c2 = st.columns([1, 1.5, 1])
                 with mid:
                     fig_pie = go.Figure(go.Pie(
@@ -379,7 +390,6 @@ def predictor_page():
                     fig_pie.update_layout(title="Review distribution", height=320)
                     st.plotly_chart(fig_pie, use_container_width=True)
 
-                # ---------------- Side Effects Section ----------------
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.markdown("---")
 
