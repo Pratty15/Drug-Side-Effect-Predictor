@@ -22,90 +22,147 @@ st.set_page_config(page_title="Drug Side Effect Predictor", layout="centered")
 st.markdown("""
 <style>
 
+/* ----------------------------------------------------------
+   🌌 Premium Background (Gradient + Fog Texture)
+-----------------------------------------------------------*/
 body {
     color: #EAEAEA;
-    background-color: #0f1720;
     font-size: 18px;
+    background: radial-gradient(circle at top, #1e293b 0%, #0d1421 40%, #020617 100%) !important;
+    background-attachment: fixed !important;
 }
 
-/* Headings */
+/* Soft fog overlay */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("https://www.transparenttextures.com/patterns/black-felt.png");
+    opacity: 0.06;
+    z-index: -1;
+}
+
+/* ----------------------------------------------------------
+   📦 Container Spacing
+-----------------------------------------------------------*/
+.block-container {
+    padding-top: 6vh !important;
+}
+
+/* ----------------------------------------------------------
+   🧊 Glassmorphic Cards (login box, results, etc.)
+-----------------------------------------------------------*/
+.card {
+    background: rgba(16, 25, 34, 0.55) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 28px;
+    margin-top: 20px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 0 28px rgba(0,0,0,0.45);
+}
+
+/* ----------------------------------------------------------
+   🔤 Headings - modern & cleaner
+-----------------------------------------------------------*/
 h1, h2, h3, h4 {
-    color: #FFFFFF !important;
+    color: #ffffff !important;
+    font-weight: 650 !important;
     margin-top: 20px !important;
     margin-bottom: 12px !important;
+    letter-spacing: 0.3px;
 }
 
-/* Main container padding */
-.block-container {
-    padding-top: 2rem !important;
-}
-
-/* Card styling */
-.card {
-    background: #101922;
-    padding: 25px;
-    margin-top: 20px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.08);
-}
-
-/* Muted text */
+/* ----------------------------------------------------------
+   📝 Muted text
+-----------------------------------------------------------*/
 .muted {
-    color:#b5c7df;
+    color:#c4d2e3 !important;
     font-size: 15px;
 }
 
-/* ---------------- STREAMLIT 1.49 COMPATIBLE SELECTORS ---------------- */
-
-/* Text Input */
+/* ----------------------------------------------------------
+   ✏️ Text Input (Premium look)
+-----------------------------------------------------------*/
 div[data-testid="stTextInput"] input {
-    background-color: #101922 !important;
+    background-color: rgba(18, 26, 38, 0.7) !important;
     color: #EAEAEA !important;
-    border-radius: 8px !important;
-    padding: 10px !important;
-    font-size: 18px !important;
-    border: 1px solid #2d3b45 !important;
+    border-radius: 10px !important;
+    padding: 12px !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    transition: 0.2s;
 }
 
-/* Selectbox */
+div[data-testid="stTextInput"] input:focus {
+    border-color: #4f8cff !important;
+    box-shadow: 0 0 10px rgba(79, 140, 255, 0.45);
+}
+
+/* ----------------------------------------------------------
+   🔽 Selectbox
+-----------------------------------------------------------*/
 div[data-testid="stSelectbox"] > div {
-    background-color: #101922 !important;
+    background-color: rgba(18, 26, 38, 0.7) !important;
     color: white !important;
-    border-radius: 8px !important;
-    border: 1px solid #2d3b45 !important;
-    padding: 6px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    padding: 8px !important;
 }
 
-/* Buttons */
+/* ----------------------------------------------------------
+   🔘 Buttons (Primary + Secondary)
+-----------------------------------------------------------*/
 button[kind="primary"], button[data-testid="baseButton-primary"] {
-    background-color: #2563eb !important;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
     color: white !important;
     font-size: 18px !important;
-    border-radius: 8px !important;
-    padding: 10px 18px !important;
+    border-radius: 10px !important;
+    padding: 10px 22px !important;
+    border: none !important;
+    transition: 0.2s ease-in-out;
+}
+
+button[kind="primary"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.45);
 }
 
 button[kind="secondary"], button[data-testid="baseButton-secondary"] {
-    background-color: #334155 !important;
+    background: rgba(255,255,255,0.10) !important;
     color: white !important;
     font-size: 18px !important;
-    border-radius: 8px !important;
-    padding: 10px 18px !important;
+    border-radius: 10px !important;
+    padding: 10px 22px !important;
+    transition: 0.2s ease-in-out;
 }
 
-/* Lists */
+button[kind="secondary"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(255,255,255,0.18);
+}
+
+/* ----------------------------------------------------------
+   📋 Lists
+-----------------------------------------------------------*/
 ul, li {
-    margin-top: 8px;
     font-size: 18px;
+    margin-top: 8px;
+    color: #dce6f4 !important;
 }
 
-/* Plotly Title */
+/* ----------------------------------------------------------
+   📊 Plotly Title Fix
+-----------------------------------------------------------*/
 .js-plotly-plot .plotly .gtitle {
     font-size: 22px !important;
-    font-weight: 600;
+    font-weight: 600 !important;
+    fill: #ffffff !important;
 }
 
 </style>
+
 """, unsafe_allow_html=True)
 
 
