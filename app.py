@@ -8,6 +8,14 @@ import streamlit as st
 import bcrypt
 from datetime import datetime
 import plotly.graph_objects as go
+import base64
+
+# ---------------- IMAGE BASE64 ----------------
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+
+bg_image = get_base64_image("dataset-cover.jpg")   # BACKGROUND IMAGE
 
 # ---------------- CONFIG ----------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,42 +26,41 @@ DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "users.db"))
 # ---------------- PAGE SETTINGS ----------------
 st.set_page_config(page_title="Drug Side Effect Predictor", layout="centered")
 
-# ---------------- UPDATED WORKING CSS (STREAMLIT 1.49.1) ----------------
-st.markdown("""
+# ---------------- UPDATED CSS ----------------
+st.markdown(f"""
 <style>
 
-/* ----------------------------------------------------------
-   🌌 Premium Background (Gradient + Fog Texture)
------------------------------------------------------------*/
-body {
-    color: #EAEAEA;
-    font-size: 18px;
-    background: radial-gradient(circle at top, #1e293b 0%, #0d1421 40%, #020617 100%) !important;
-    background-attachment: fixed !important;
-}
+html, body, [data-testid="stApp"] {{
+    color: #EAEAEA !important;
+    font-size: 18px !important;
 
-/* Soft fog overlay */
-body::before {
+    background-image:
+        linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.88)),
+        url("data:image/jpeg;base64,{bg_image}");
+    
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+}}
+
+/* Fog overlay */
+[data-testid="stApp"]::before {{
     content: "";
     position: fixed;
     inset: 0;
     pointer-events: none;
+
     background-image: url("https://www.transparenttextures.com/patterns/black-felt.png");
-    opacity: 0.06;
+    opacity: 0.12;
     z-index: -1;
-}
+}}
 
-/* ----------------------------------------------------------
-   📦 Container Spacing
------------------------------------------------------------*/
-.block-container {
+.block-container {{
     padding-top: 6vh !important;
-}
+}}
 
-/* ----------------------------------------------------------
-   🧊 Glassmorphic Cards (login box, results, etc.)
------------------------------------------------------------*/
-.card {
+.card {{
     background: rgba(16, 25, 34, 0.55) !important;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
@@ -62,59 +69,44 @@ body::before {
     border-radius: 14px;
     border: 1px solid rgba(255,255,255,0.08);
     box-shadow: 0 0 28px rgba(0,0,0,0.45);
-}
+}}
 
-/* ----------------------------------------------------------
-   🔤 Headings - modern & cleaner
------------------------------------------------------------*/
-h1, h2, h3, h4 {
+h1, h2, h3, h4 {{
     color: #ffffff !important;
     font-weight: 650 !important;
     margin-top: 20px !important;
     margin-bottom: 12px !important;
     letter-spacing: 0.3px;
-}
+}}
 
-/* ----------------------------------------------------------
-   📝 Muted text
------------------------------------------------------------*/
-.muted {
+.muted {{
     color:#c4d2e3 !important;
     font-size: 15px;
-}
+}}
 
-/* ----------------------------------------------------------
-   ✏️ Text Input (Premium look)
------------------------------------------------------------*/
-div[data-testid="stTextInput"] input {
+div[data-testid="stTextInput"] input {{
     background-color: rgba(18, 26, 38, 0.7) !important;
     color: #EAEAEA !important;
     border-radius: 10px !important;
     padding: 12px !important;
     border: 1px solid rgba(255,255,255,0.08) !important;
     transition: 0.2s;
-}
+}}
 
-div[data-testid="stTextInput"] input:focus {
+div[data-testid="stTextInput"] input:focus {{
     border-color: #4f8cff !important;
     box-shadow: 0 0 10px rgba(79, 140, 255, 0.45);
-}
+}}
 
-/* ----------------------------------------------------------
-   🔽 Selectbox
------------------------------------------------------------*/
-div[data-testid="stSelectbox"] > div {
+div[data-testid="stSelectbox"] > div {{
     background-color: rgba(18, 26, 38, 0.7) !important;
     color: white !important;
     border-radius: 10px !important;
     border: 1px solid rgba(255,255,255,0.08) !important;
     padding: 8px !important;
-}
+}}
 
-/* ----------------------------------------------------------
-   🔘 Buttons (Primary + Secondary)
------------------------------------------------------------*/
-button[kind="primary"], button[data-testid="baseButton-primary"] {
+button[kind="primary"], button[data-testid="baseButton-primary"] {{
     background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
     color: white !important;
     font-size: 18px !important;
@@ -122,49 +114,41 @@ button[kind="primary"], button[data-testid="baseButton-primary"] {
     padding: 10px 22px !important;
     border: none !important;
     transition: 0.2s ease-in-out;
-}
+}}
 
-button[kind="primary"]:hover {
+button[kind="primary"]:hover {{
     transform: translateY(-2px);
     box-shadow: 0 8px 18px rgba(37, 99, 235, 0.45);
-}
+}}
 
-button[kind="secondary"], button[data-testid="baseButton-secondary"] {
+button[kind="secondary"], button[data-testid="baseButton-secondary"] {{
     background: rgba(255,255,255,0.10) !important;
     color: white !important;
     font-size: 18px !important;
     border-radius: 10px !important;
     padding: 10px 22px !important;
     transition: 0.2s ease-in-out;
-}
+}}
 
-button[kind="secondary"]:hover {
+button[kind="secondary"]:hover {{
     transform: translateY(-2px);
     box-shadow: 0 6px 14px rgba(255,255,255,0.18);
-}
+}}
 
-/* ----------------------------------------------------------
-   📋 Lists
------------------------------------------------------------*/
-ul, li {
+ul, li {{
     font-size: 18px;
     margin-top: 8px;
     color: #dce6f4 !important;
-}
+}}
 
-/* ----------------------------------------------------------
-   📊 Plotly Title Fix
------------------------------------------------------------*/
-.js-plotly-plot .plotly .gtitle {
+.js-plotly-plot .plotly .gtitle {{
     font-size: 22px !important;
     font-weight: 600 !important;
     fill: #ffffff !important;
-}
+}}
 
 </style>
-
 """, unsafe_allow_html=True)
-
 
 # ---------------- DATABASE ----------------
 def init_db():
@@ -210,7 +194,6 @@ def verify_user(conn, username, password):
     return bcrypt.checkpw(password.encode("utf-8"), stored_hash)
 
 conn = init_db()
-
 
 # ---------------- MODEL & DATA ----------------
 SEVERITY_RULES = {
@@ -259,7 +242,6 @@ def load_models_and_data():
 
 tfv, xgb_model, label_binarizer, df, drug_list = load_models_and_data()
 
-
 def get_predictions_for_drug(selected_drug):
     matches = df[df["Medicine Name"].str.lower() == selected_drug.lower()]
     if matches.empty:
@@ -299,13 +281,11 @@ def get_predictions_for_drug(selected_drug):
         "poor": poor
     }
 
-
 # ---------------- SESSION ----------------
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 if "username" not in st.session_state:
     st.session_state["username"] = None
-
 
 # ---------------- ROUTER ----------------
 def get_current_page():
@@ -315,14 +295,12 @@ def go_to_page(page_name):
     st.query_params["page"] = page_name
     st.rerun()
 
-
-# ---------------- PAGES ----------------
+# ---------------- UI COMPONENTS ----------------
 def header_nav():
     st.markdown("### 🔷 Drug Side Effect & Review Predictor")
     if st.session_state["authenticated"]:
         st.markdown(f"<div class='muted'>Logged in as {st.session_state['username']}</div>", unsafe_allow_html=True)
     st.markdown("---")
-
 
 def login_page():
     st.markdown("## 🔐 Login")
@@ -338,7 +316,6 @@ def login_page():
             st.error("Invalid username or password")
     if st.button("Go to Signup"):
         go_to_page("signup")
-
 
 def signup_page():
     st.markdown("## 📝 Signup")
@@ -360,7 +337,6 @@ def signup_page():
 
     if st.button("Back to Login"):
         go_to_page("login")
-
 
 def predictor_page():
     if not st.session_state["authenticated"]:
@@ -471,7 +447,7 @@ def predictor_page():
         go_to_page("login")
 
 
-# ---------------- ROUTER ----------------
+# ---------------- ROUTE HANDLING ----------------
 header_nav()
 page = get_current_page()
 
