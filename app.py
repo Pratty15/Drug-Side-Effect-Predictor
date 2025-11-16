@@ -269,12 +269,12 @@ def get_predictions_for_drug(selected_drug):
     average = row.get("Average Review %", 0)
     poor = 100 - (excellent + average)
 
-    review_label = "Excellent ✅" if excellent > 50 else "Average ⚠" if average > 50 else "Poor ⚠️"
+    #review_label = "Excellent ✅" if excellent > 50 else "Average ⚠" if average > 50 else "Poor ⚠️"
 
     return {
         "name": row["Medicine Name"],
         "groups": groups,
-        "review": review_label,
+        #"review": review_label,
         "image_url": row.get("Image URL", ""),
         "excellent": excellent,
         "average": average,
@@ -374,11 +374,11 @@ def predictor_page():
                             use_container_width=True
                         )
 
-                    st.write(f"**Review:** {result['review']}")
-                    st.markdown(
-                        f"<i>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>",
-                        unsafe_allow_html=True
-                    )
+                    #st.write(f"**Review:** {result['review']}")
+                    #st.markdown(
+                    #    f"<i>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</i>",
+                    #    unsafe_allow_html=True
+                    #)
 
                 with col2:
                     st.markdown(f"### 📌 {result['name']}")
