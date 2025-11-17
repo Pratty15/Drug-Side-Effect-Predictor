@@ -1,6 +1,6 @@
 # scripts/train_model.py
 """
-Optimized training with XGBoost (Option B).
+Optimized training with XGBoost 
 Saves: models/vectorizer.pkl, models/mlb.pkl, models/le_review.pkl,
        models/side_effect_model.pkl, models/review_model.xgb, models/meta.json
 """
