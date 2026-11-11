@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>st_voice_component</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgba(20, 26, 44, 0.65);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(108, 99, 255, 0.12);
+      border-radius: 14px;
+      padding: 16px;
+      box-sizing: border-box;
+      transition: all 0.3s ease;
+    }
+
+    .mic-button-wrapper {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .mic-button {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6C63FF, #8b5cf6);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(108, 99, 255, 0.3);
+      transition: all 0.3s ease;
+      z-index: 2;
+    }
+
+    .mic-button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(108, 99, 255, 0.5);
+    }
+
+    .mic-button svg {
+      width: 26px;
+      height: 26px;
+      fill: #ffffff;
+      transition: all 0.3s ease;
+    }
+
+    /* Listening pulse waves */
+    .pulse-ring {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: rgba(108, 99, 255, 0.4);
+      z-index: 1;
+      opacity: 0;
+    }
+
+    .listening .mic-button {
+      background: linear-gradient(135deg, #FF6B6B, #e74c3c);
+      box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+    }
+
+    .listening .pulse-ring {
+      animation: pulse 1.5s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        opacity: 0.6;
+      }
+      100% {
+        transform: scale(1.6);
+        opacity: 0;
+      }
+    }
+
+    .status-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: #8892b0;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      transition: color 0.3s ease;
+    }
+
+    .listening .status-text {
+      color: #FF6B6B;
+    }
+
+    .transcript-box {
+      width: 100%;
+      background: rgba(10, 12, 20, 0.4);
+      border: 1px solid rgba(108, 99, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 40px;
+      max-height: 80px;
+      box-sizing: border-box;
+      font-size: 14px;
+      line-height: 1.5;
+      text-align: center;
+      color: #c4d2e3;
+      overflow-y: auto;
+      word-wrap: break-word;
+      transition: all 0.3s ease;
+    }
+
+    .transcript-box.has-content {
+      color: #e2e8f0;
+      border-color: rgba(108, 99, 255, 0.2);
+    }
+
+    .error-msg {
+      color: #FF6B6B;
+      font-size: 12px;
+      margin-top: 6px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="container">
+    <div class="mic-button-wrapper">
+      <div class="pulse-ring"></div>
+      <button class="mic-button" id="mic_btn">
+        <!-- Mic Icon SVG -->
+        <svg viewBox="0 0 24 24" id="mic_icon">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="status-text" id="status_text">Click to speak</div>
+    <div class="transcript-box" id="transcript_box">Speak medicine name...</div>
+    <div class="error-msg" id="error_box" style="display: none;"></div>
+  </div>
+
+  <script>
+    // Streamlit Component SDK Protocol
+    const Streamlit = {
+      setComponentValue: function(value) {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setComponentValue",
+          value: value
+        }, "*");
+      },
+      setFrameHeight: function(height) {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:setFrameHeight",
+          height: height
+        }, "*");
+      },
+      setComponentReady: function() {
+        window.parent.postMessage({
+          isStreamlitMessage: true,
+          type: "streamlit:componentReady",
+          apiVersion: 1
+        }, "*");
+      }
+    };
+
+    const container = document.getElementById('container');
+    const micBtn = document.getElementById('mic_btn');
+    const statusText = document.getElementById('status_text');
+    const transcriptBox = document.getElementById('transcript_box');
+    const errorBox = document.getElementById('error_box');
+    
+    let recognition = null;
+    let isListening = false;
+    let finalTranscript = '';
+
+    // Initialize Web Speech API
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      statusText.textContent = "Not Supported";
+      transcriptBox.textContent = "Speech recognition is not supported in this browser. Use Chrome or Edge.";
+      micBtn.disabled = true;
+      micBtn.style.opacity = '0.5';
+      Streamlit.setComponentReady();
+      sendUpdate("", false, false);
+    } else {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'en-IN';
+      recognition.interimResults = true;
+      recognition.continuous = false; // Stop automatically when user finishes speaking
+
+      recognition.onstart = function() {
+        isListening = true;
+        container.classList.add('listening');
+        statusText.textContent = "Listening...";
+        transcriptBox.textContent = "Listening... speak now...";
+        transcriptBox.classList.remove('has-content');
+        errorBox.style.display = 'none';
+        sendUpdate("", false, true);
+      };
+
+      recognition.onend = function() {
+        isListening = false;
+        container.classList.remove('listening');
+        statusText.textContent = "Click to speak";
+        if (!finalTranscript) {
+          transcriptBox.textContent = "Tap button and try again.";
+        }
+      };
+
+      recognition.onerror = function(event) {
+        isListening = false;
+        container.classList.remove('listening');
+        statusText.textContent = "Click to speak";
+        
+        let msg = "Error: " + event.error;
+        if (event.error === 'not-allowed') {
+          msg = "Mic permission denied. Please allow access.";
+        } else if (event.error === 'no-speech') {
+          msg = "No speech detected. Try again.";
+        }
+        errorBox.textContent = msg;
+        errorBox.style.display = 'block';
+      };
+
+      recognition.onresult = function(event) {
+        let interimTranscript = '';
+        let combined = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript = event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        
+        combined = (finalTranscript || interimTranscript).trim();
+        if (combined) {
+          transcriptBox.textContent = combined;
+          transcriptBox.classList.add('has-content');
+          // Send live data back to Streamlit
+          sendUpdate(combined, event.results[event.results.length - 1].isFinal, true);
+        }
+      };
+
+      micBtn.onclick = function() {
+        if (isListening) {
+          recognition.stop();
+        } else {
+          finalTranscript = '';
+          try {
+            recognition.start();
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      };
+
+      // Notify Streamlit that component is ready
+      Streamlit.setComponentReady();
+      // Set fixed frame height based on container dimensions
+      Streamlit.setFrameHeight(170);
+    }
+
+    function sendUpdate(transcript, isFinal, supported) {
+      Streamlit.setComponentValue({
+        transcript: transcript,
+        is_final: isFinal,
+        supported: supported
+      });
+    }
+  </script>
+</body>
+</html>

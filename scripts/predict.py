@@ -1,41 +1,51 @@
+# scripts/predict.py
+"""
+Standalone prediction module for Drug Side Effect Predictor.
+Can be run directly from the command line for testing.
+"""
+
 import os
+import re
 import joblib
 import pandas as pd
-import re
 import difflib
 
 # --- Setup paths ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_DIR = os.path.join(BASE_DIR, 'models')
-
-DATA_PATH = os.path.join(BASE_DIR, 'data', 'Medicine_Details.csv')
+MODEL_DIR = os.path.join(BASE_DIR, "models")
+DATA_PATH = os.path.join(BASE_DIR, "data", "Medicine_Details.csv")
 
 # Load models and vectorizers
-tfv = joblib.load(os.path.join(MODEL_DIR, 'vectorizer.pkl'))
-xgb_model = joblib.load(os.path.join(MODEL_DIR, 'side_effect_model.pkl'))
-label_binarizer = joblib.load(os.path.join(MODEL_DIR, 'mlb.pkl'))
+tfv = joblib.load(os.path.join(MODEL_DIR, "vectorizer.pkl"))
+xgb_model = joblib.load(os.path.join(MODEL_DIR, "side_effect_model.pkl"))
+label_binarizer = joblib.load(os.path.join(MODEL_DIR, "mlb.pkl"))
 
 # Load dataset
 df = pd.read_csv(DATA_PATH)
-drug_list = df['Medicine Name'].dropna().unique().tolist()
+drug_list = df["Medicine Name"].dropna().unique().tolist()
+
 
 # ---------- Severity Rules ----------
 SEVERITY_RULES = {
-    'severe': ['death', 'anaphyl', 'coma', 'hospital', 'failure'],
-    'moderate': ['nausea', 'vomit', 'vomiting', 'diarr', 'headache', 'dizzy', 'rash', 'pain'],
+    "severe": ["death", "anaphyl", "coma", "hospital", "failure", "insufficiency", "liver", "seizure", "cardiac"],
+    "moderate": ["nausea", "vomit", "vomiting", "diarr", "headache", "dizzy", "rash", "pain", "fever", "swelling"],
 }
 
-def estimate_severity(text):
-    text = text.lower()
-    for word in SEVERITY_RULES['severe']:
-        if word in text:
+
+def estimate_severity(text: str) -> str:
+    """Classify a side-effect string as Severe/Moderate/Mild."""
+    t = text.lower()
+    for w in SEVERITY_RULES["severe"]:
+        if w in t:
             return "Severe 🔴"
-    for word in SEVERITY_RULES['moderate']:
-        if word in text:
+    for w in SEVERITY_RULES["moderate"]:
+        if w in t:
             return "Moderate 🟠"
     return "Mild 🟢"
 
+
 def clean_text(s):
+    """Lowercase, strip URLs and special characters."""
     if pd.isna(s):
         return ""
     s = str(s).lower()
@@ -44,40 +54,40 @@ def clean_text(s):
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
-# ✅ New function for formatting side effects
+
 def format_side_effects(side_effects):
+    """Clean and deduplicate side effect strings."""
     formatted = []
     for effect in side_effects:
-        effect = re.sub(r'[^\w\s,]', '', effect)
-        parts = re.split(r',| and | with ', effect)
+        effect = re.sub(r"[^\w\s,]", "", effect)
+        parts = re.split(r",| and | with ", effect)
         for p in parts:
             p = p.strip().capitalize()
             if len(p) > 1:
                 formatted.append(p)
-    return list(set(formatted))  # remove duplicates
+    return list(dict.fromkeys(formatted))
 
-def predict_side_effects(drug_name):
-    matches = df[df['Medicine Name'].str.lower() == drug_name.lower()]
+
+def predict_side_effects(drug_name: str) -> list | None:
+    """Predict side effects for a given drug name. Returns list or None."""
+    matches = df[df["Medicine Name"].str.lower() == drug_name.lower()]
     if matches.empty:
         return None
-
     row = matches.iloc[0]
-    description = clean_text(row['Composition']) + " " + clean_text(row['Uses'])
+    description = clean_text(row["Composition"]) + " " + clean_text(row["Uses"])
     description_vec = tfv.transform([description])
     prediction = xgb_model.predict(description_vec)
+    return [label_binarizer.classes_[i] for i in range(len(prediction[0])) if prediction[0][i] == 1]
 
-    side_effects = [label_binarizer.classes_[i] for i in range(len(prediction[0])) if prediction[0][i] == 1]
-    return side_effects
 
-def predict_review_label(drug_name):
-    matches = df[df['Medicine Name'].str.lower() == drug_name.lower()]
+def predict_review_label(drug_name: str) -> str | None:
+    """Predict review sentiment for a given drug name."""
+    matches = df[df["Medicine Name"].str.lower() == drug_name.lower()]
     if matches.empty:
         return None
-
     row = matches.iloc[0]
-    excellent = row.get('Excellent Review %', 0)
-    average = row.get('Average Review %', 0)
-
+    excellent = row.get("Excellent Review %", 0)
+    average = row.get("Average Review %", 0)
     if excellent > 50:
         return "Excellent ✅"
     elif average > 50:
@@ -85,17 +95,20 @@ def predict_review_label(drug_name):
     else:
         return "Poor ⚠️"
 
-def suggest_drug_names(user_input, n=5, cutoff=0.4):
+
+def suggest_drug_names(user_input: str, n: int = 5, cutoff: float = 0.4) -> list:
+    """Return fuzzy-matched drug name suggestions."""
     return difflib.get_close_matches(user_input, drug_list, n=n, cutoff=cutoff)
 
-# ----------- Main Program ----------
+
+# ----------- Main Program -----------
 if __name__ == "__main__":
     print("🔹 Drug Side Effect & Review Predictor 🔹")
 
     while True:
         user_input = input("\n🔍 Enter a drug name (or type 'exit' to quit): ").strip()
 
-        if user_input.lower() == 'exit':
+        if user_input.lower() == "exit":
             print("\n👋 Exiting. Stay healthy and safe!")
             break
 
@@ -125,34 +138,44 @@ if __name__ == "__main__":
         if side_effects is None:
             print("❌ Drug not found in dataset. Try again.")
         else:
+            matches = df[df["Medicine Name"].str.lower() == selected_drug.lower()]
+            row = matches.iloc[0]
+
             print("\n✅ Prediction Result")
-            print("---------------------------")
+            print("─" * 40)
             print(f"📌 Drug Name: {selected_drug}\n")
 
-            # ✅ Format and classify side effects
+            print("💊 Medicine Details:")
+            print("─" * 40)
+            if pd.notna(row.get("Manufacturer")) and str(row.get("Manufacturer")).strip():
+                print(f"🏭 Manufacturer: {row.get('Manufacturer')}")
+            if pd.notna(row.get("Composition")) and str(row.get("Composition")).strip():
+                print(f"🧪 Composition: {row.get('Composition')}")
+            if pd.notna(row.get("Uses")) and str(row.get("Uses")).strip():
+                print(f"💡 Uses: {row.get('Uses')}")
+            print()
+
             clean_effects = format_side_effects(side_effects)
-            mild = []
-            moderate = []
-            severe = []
+            mild, moderate, severe = [], [], []
 
             for effect in clean_effects:
                 severity = estimate_severity(effect)
                 if "Severe" in severity:
-                    severe.append(f"- {effect} ({severity})")
+                    severe.append(f"  • {effect} ({severity})")
                 elif "Moderate" in severity:
-                    moderate.append(f"- {effect} ({severity})")
+                    moderate.append(f"  • {effect} ({severity})")
                 else:
-                    mild.append(f"- {effect} ({severity})")
+                    mild.append(f"  • {effect} ({severity})")
 
             print("💊 Predicted Side Effects:\n")
-            if mild:
-                print("✅ Mild Side Effects:")
-                print("\n".join(mild), "\n")
-            if moderate:
-                print("🟠 Moderate Side Effects:")
-                print("\n".join(moderate), "\n")
             if severe:
                 print("🔴 Severe Side Effects:")
                 print("\n".join(severe), "\n")
+            if moderate:
+                print("🟠 Moderate Side Effects:")
+                print("\n".join(moderate), "\n")
+            if mild:
+                print("🟢 Mild Side Effects:")
+                print("\n".join(mild), "\n")
 
             print(f"🗣️ Review Sentiment: {review_label}")

@@ -7,3 +7,6 @@ streamlit
 bcrypt
 altair
 pillow
+rapidfuzz    
+requests
+plotly
